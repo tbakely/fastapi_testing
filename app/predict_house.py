@@ -1,23 +1,40 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from typing import Optional
 import numpy as np
 import pickle
 
+#Import pydantic models and house data
 from schemas import House, NewHouse
 from house_data import houses
+
+#Testing frontend packages
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
 
 
 app = FastAPI()
 
 
-@app.get('/', status_code=200)
-def root() -> dict:
-    return {'message': 'Predict house sales.'}
+BASE_PATH = Path(__file__).resolve().parent
+TEMPLATES = Jinja2Templates(directory=str(BASE_PATH / "templates"))
+
+
+@app.get('/')
+def root(request: Request) -> dict:
+    return TEMPLATES.TemplateResponse(
+        "index.html",
+        {"request": request, "houses": houses},
+    )
+
+
+# @app.get('/', status_code=200)
+# def root() -> dict:
+#     return {'message': 'Predict house sales.'}
 
 
 @app.get('/houses')
 def view_houses():
-    return houses
+    return {'houses': houses}
 
 
 @app.post('/houses/add_house', response_model=House)
