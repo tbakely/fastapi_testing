@@ -1,17 +1,10 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
 from typing import Optional
 import numpy as np
 import pickle
 
-houses = []
-
-class NewHouse(BaseModel):
-    id: int
-    bedroom: int
-    bathroom: int
-    sqft: float
-    school_score: int
+from schemas import House, NewHouse
+from house_data import houses
 
 
 app = FastAPI()
@@ -27,10 +20,17 @@ def view_houses():
     return houses
 
 
-@app.post('/houses/add_house')
+@app.post('/houses/add_house', response_model=House)
 def add_house(house: NewHouse):
-    houses.append(house)
-    return house
+    new_id = len(houses) + 1
+    house_entry = House(
+        id = new_id,
+        bedroom = house.bedroom,
+        bathroom = house.bathroom,
+        sqft = house.sqft,
+    )
+    houses.append(house_entry)
+    return house_entry
 
 
 @app.delete('/houses/delete_house/{id}')
@@ -57,11 +57,15 @@ def update_house(id: int, bedroom: Optional[int] = None, bathroom: Optional[int]
 
 @app.get('/predict/{id}')
 def predict_sale(id: int):
+    result = [house for house in houses if house.id == id]
+    if not result:
+        raise HTTPException(
+            status_code=404, detail=f'House with ID {id} not found.'
+        )
+
     model = pickle.load(open('dt_regressor.pkl', 'rb'))
-    input = [house for house in houses if house.id == id][0]
+    input = result[0]
     predictors = np.array([input.bedroom, input.bathroom, input.sqft]).reshape(1, -1)
     output = model.predict(predictors)
-    
+
     return f'The predicted sale of this home is {output[0]:.2f}.'
-
-
